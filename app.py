@@ -2,248 +2,190 @@
 import streamlit as st
 import pandas as pd
 
-# Ganti import ini sesuai nama file tempat class model kamu berada.
 from chatbot_engine import MedicalChatbotEngineV3
 
 
-# =====================================================
-# PAGE CONFIG
-# =====================================================
+# ============================================================
+# 1. PAGE CONFIGURATION
+# ============================================================
 
 st.set_page_config(
-    page_title="MedBot v3 - Medical Assistant",
-    page_icon="🏥",
-    layout="centered"
+    page_title="MedQuad Medical Chatbot",
+    page_icon="🩺",
+    layout="centered",
 )
 
-
-# =====================================================
-# CSS
-# =====================================================
-
-st.markdown("""
-<style>
-    .stApp {
-        background-color: #f0f4ff;
-    }
-
-    .main .block-container {
-        max-width: 900px;
+st.markdown(
+    """
+    <style>
+    .block-container {
+        max-width: 850px;
         padding-top: 2rem;
-    }
-
-    .header {
-        background: linear-gradient(
-            135deg, #1a1f5e, #2d3a8c, #1565c0
-        );
-        padding: 25px;
-        border-radius: 16px;
-        color: white;
-        margin-bottom: 18px;
-    }
-
-    .header h2 {
-        color: white;
-        margin-bottom: 8px;
-    }
-
-    .header p {
-        color: #e4edff;
-        margin-bottom: 0;
-    }
-
-    .disclaimer {
-        background: #fff8e1;
-        padding: 12px 15px;
-        border-left: 4px solid orange;
-        border-radius: 8px;
-        margin-bottom: 18px;
-        color: #594515;
-        font-size: 13px;
+        padding-bottom: 2rem;
     }
 
     div.stButton > button {
+        width: 100%;
+        min-height: 45px;
         border-radius: 10px;
     }
-</style>
-""", unsafe_allow_html=True)
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+st.title("🩺 MedQuad Medical Chatbot")
+
+st.write(
+    "Ask questions about medical conditions, symptoms, "
+    "treatments, and general health."
+)
+
+st.info(
+    "This chatbot provides educational information from "
+    "its dataset. It is not a substitute for professional "
+    "medical advice."
+)
 
 
-# =====================================================
-# LOAD DATASET AND MODEL
-# =====================================================
+# ============================================================
+# 2. LOAD CHATBOT
+# ============================================================
 
-@st.cache_resource
+
+# ============================================================
+# 2. LOAD CHATBOT
+# ============================================================
+
+@st.cache_resource(show_spinner="Loading MedQuad chatbot...")
 def load_chatbot():
     df = pd.read_csv("medquad.csv")
 
-    bot = MedicalChatbotEngineV3(df)
+    chatbot = MedicalChatbotEngineV3(
+        dataframe=df,
+        threshold=0.30,
+        top_k=3,
+    )
 
-    return bot
+    return chatbot
 
 
 try:
-    bot = load_chatbot()
+    chatbot = load_chatbot()
+
 except Exception as e:
-    st.error(f"Failed to load the chatbot: {e}")
+    st.error(f"Failed to load chatbot: {e}")
     st.stop()
 
-
-# =====================================================
-# HEADER
-# =====================================================
-
-st.markdown("""
-<div class="header">
-    <h2>🏥 MedBot v3 — Smart Medical Assistant</h2>
-    <p>🟢 Context-Aware Semantic Engine</p>
-</div>
-""", unsafe_allow_html=True)
-
-
-# =====================================================
-# DISCLAIMER
-# =====================================================
-
-st.markdown("""
-<div class="disclaimer">
-    ⚠️ <b>Educational use only.</b>
-    This chatbot does not replace professional medical advice,
-    diagnosis, or treatment. For medical emergencies, contact
-    your local emergency services.
-</div>
-""", unsafe_allow_html=True)
-
-
-# =====================================================
-# SESSION STATE
-# =====================================================
+# ============================================================
+# 3. INITIALIZE SESSION
+# ============================================================
 
 if "messages" not in st.session_state:
-    st.session_state.messages = []
+    st.session_state.messages = [
+        {
+            "role": "assistant",
+            "content": (
+                "Hello! I am the MedQuad Medical Chatbot. "
+                "You can ask me medical questions in English."
+            ),
+        }
+    ]
 
 
-# =====================================================
-# CHAT HISTORY
-# =====================================================
+# ============================================================
+# 4. QUICK QUESTIONS
+# ============================================================
 
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
-
-
-# =====================================================
-# RESPONSE FUNCTION
-# =====================================================
-
-def get_bot_response(question):
-    try:
-        response = bot.get_response(question)
-
-        if response is None:
-            return (
-                "Sorry, I could not find a suitable answer "
-                "in the medical dataset."
-            )
-
-        return str(response)
-
-    except Exception as e:
-        return f"An error occurred: {e}"
-
-
-# =====================================================
-# SEND QUESTION
-# =====================================================
-
-def send_question(question):
-    question = question.strip()
-
-    if not question:
-        return
-
-    # Display and save user message
-    st.session_state.messages.append({
-        "role": "user",
-        "content": question
-    })
-
-    with st.chat_message("user"):
-        st.markdown(question)
-
-    # Generate response
-    with st.chat_message("assistant"):
-        with st.spinner("MedBot is typing..."):
-            response = get_bot_response(question)
-
-        st.markdown(response)
-
-    # Save assistant response
-    st.session_state.messages.append({
-        "role": "assistant",
-        "content": response
-    })
-
-
-# =====================================================
-# QUICK QUESTIONS
-# =====================================================
-
-st.markdown("### 💡 Quick Questions")
+st.subheader("Quick Questions")
 
 quick_questions = [
-    "What are the symptoms of diabetes?",
     "What causes high blood pressure?",
-    "What are the symptoms of asthma?",
-    "What are the symptoms of heart disease?",
-    "What are common mental health conditions?"
+    "How can I prevent heart disease?",
+    "What is Q fever?",
+    "How is Q fever treated?",
 ]
 
 cols = st.columns(2)
 
 for i, question in enumerate(quick_questions):
-    with cols[i % 2]:
-        if st.button(
-            question,
-            key=f"quick_{i}",
-            use_container_width=True
-        ):
-            send_question(question)
-            st.rerun()
+    if cols[i % 2].button(
+        question,
+        key=f"quick_{i}",
+    ):
+        st.session_state.pending_question = question
+        st.rerun()
 
 
-# =====================================================
-# CHAT INPUT
-# =====================================================
+# ============================================================
+# 5. PROCESS NEW QUESTION BEFORE DISPLAYING CHAT
+# ============================================================
 
-user_question = st.chat_input(
-    "Type your medical question in English..."
-)
+if "pending_question" in st.session_state:
+    user_text = st.session_state.pop("pending_question")
 
-if user_question:
-    send_question(user_question)
-    st.rerun()
+    st.session_state.messages.append(
+        {
+            "role": "user",
+            "content": user_text,
+        }
+    )
+
+    try:
+        with st.spinner("Generating response..."):
+            response = chatbot.get_response(user_text)
+
+        st.session_state.messages.append(
+            {
+                "role": "assistant",
+                "content": response,
+            }
+        )
+
+    except Exception as e:
+        st.session_state.messages.append(
+            {
+                "role": "assistant",
+                "content": f"Error generating response: {e}",
+            }
+        )
 
 
-# =====================================================
-# CLEAR CHAT
-# =====================================================
+# ============================================================
+# 6. DISPLAY CHAT HISTORY
+# ============================================================
 
-if st.button("🗑️ Clear Chat", use_container_width=True):
+st.divider()
+
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.write(message["content"])
+
+
+# ============================================================
+# 7. INPUT AT THE BOTTOM
+# ============================================================
+
+st.divider()
+
+with st.form("chat_form", clear_on_submit=True):
+    prompt = st.text_input(
+        "Ask another question",
+        placeholder="Type your medical question in English...",
+    )
+
+    submitted = st.form_submit_button("Send")
+
+    if submitted and prompt.strip():
+        st.session_state.pending_question = prompt.strip()
+        st.rerun()
+
+
+# ============================================================
+# 8. CLEAR CHAT
+# ============================================================
+
+if st.button("Clear Chat", key="clear_chat"):
     st.session_state.messages = []
-
-    if hasattr(bot, "conversation_history"):
-        bot.conversation_history = []
-
+    chatbot.reset_conversation()
     st.rerun()
-
-
-# =====================================================
-# FOOTER
-# =====================================================
-
-st.markdown("""
-<div style="text-align:center; color:#64748b; font-size:11px;">
-    MedBot v3 · Medical information retrieved from the MedQuad dataset
-</div>
-""", unsafe_allow_html=True)
